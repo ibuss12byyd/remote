@@ -9,5 +9,8 @@
   "scripts": {
     "check": "node --check server.mjs && node --check server/rich-media-service.mjs",
     "start": "node server.mjs"
+  },
+  "dependencies": {
+    "puppeteer": "^24.31.0"
   }
 }

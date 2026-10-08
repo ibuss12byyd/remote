@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import puppeteer from 'puppeteer';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
@@ -47,6 +48,14 @@ const NATIVE_SCREENSHOT_LAYOUT_STYLE = `
 </style>
 `;
 
+function bundledChromeExecutable() {
+  try {
+    return puppeteer.executablePath();
+  } catch {
+    return null;
+  }
+}
+
 function findChromeExecutable() {
   const candidates = [
     process.env.SHOTBOARD_CHROME_PATH,
@@ -60,6 +69,7 @@ function findChromeExecutable() {
     '/usr/bin/google-chrome',
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
+    bundledChromeExecutable(),
   ];
   return candidates.find((candidate) => candidate && existsSync(candidate)) ?? null;
 }

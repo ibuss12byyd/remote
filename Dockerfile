@@ -2,6 +2,7 @@ FROM node:22-bookworm-slim
 
 ENV NODE_ENV=production
 ENV SHOTBOARD_CHROME_PATH=/usr/bin/chromium
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 RUN apt-get update \
   && apt-get install --yes --no-install-recommends \
