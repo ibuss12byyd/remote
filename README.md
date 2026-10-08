@@ -1,0 +1,30 @@
+# Shotboard HTML service
+
+Production HTTP service for Shotboard's HTML workflows.
+
+## Routes
+
+- `GET /__shotboard/rich-media-proxy?url=...` fetches remote HTML and preserves the final source URL in `x-shotboard-source-url`.
+- `POST /__shotboard/html-screenshot` accepts `{ "html": "..." }` and returns a native Chrome PNG at `960 × 1440`.
+
+Both routes include CORS headers for a frontend hosted on another origin.
+
+## Run
+
+Requires Node.js 18+ and a Chrome/Chromium executable on the server.
+
+```bash
+npm start
+```
+
+Set `PORT` and `SHOTBOARD_CHROME_PATH` when needed:
+
+```bash
+PORT=4176 SHOTBOARD_CHROME_PATH=/usr/bin/google-chrome npm start
+```
+
+The Shotboard frontend should be built with:
+
+```bash
+VITE_RICH_MEDIA_SERVICE_URL=https://your-service.example.com npm run build
+```
