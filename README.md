@@ -28,3 +28,7 @@ The Shotboard frontend should be built with:
 ```bash
 VITE_RICH_MEDIA_SERVICE_URL=https://your-service.example.com npm run build
 ```
+
+## Render
+
+Create a **Web Service** from the `main` branch and select **Docker**. Render will use `Dockerfile`; no separate build or start command is required. Set the health check path to `/healthz`. The Docker image installs Chromium and uses Render's assigned `PORT`.

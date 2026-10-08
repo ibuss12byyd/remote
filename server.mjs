@@ -86,6 +86,14 @@ async function serveStatic(request, response) {
 
 const server = createServer(async (request, response) => {
   try {
+    const requestUrl = new URL(request.url ?? '/', `http://${request.headers.host || 'localhost'}`);
+    if (requestUrl.pathname === '/healthz') {
+      response.statusCode = 200;
+      response.setHeader('content-type', 'text/plain; charset=utf-8');
+      response.setHeader('content-length', 2);
+      response.end('ok');
+      return;
+    }
     if (await handleRichMediaRequest(request, response)) {
       return;
     }
