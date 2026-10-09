@@ -11,6 +11,6 @@
     "start": "node server.mjs"
   },
   "dependencies": {
-    "puppeteer": "^24.31.0"
+    "@sparticuz/chromium": "123.0.1"
   }
 }

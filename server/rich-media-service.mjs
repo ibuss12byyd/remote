@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import puppeteer from 'puppeteer';
+import chromium from '@sparticuz/chromium';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
@@ -48,15 +48,7 @@ const NATIVE_SCREENSHOT_LAYOUT_STYLE = `
 </style>
 `;
 
-function bundledChromeExecutable() {
-  try {
-    return puppeteer.executablePath();
-  } catch {
-    return null;
-  }
-}
-
-function findChromeExecutable() {
+function systemChromeExecutable() {
   const candidates = [
     process.env.SHOTBOARD_CHROME_PATH,
     process.env.PUPPETEER_EXECUTABLE_PATH,
@@ -69,9 +61,25 @@ function findChromeExecutable() {
     '/usr/bin/google-chrome',
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
-    bundledChromeExecutable(),
   ];
-  return candidates.find((candidate) => candidate && existsSync(candidate)) ?? null;
+  const path = candidates.find((candidate) => candidate && existsSync(candidate)) ?? null;
+  return path ? { path, args: [] } : null;
+}
+
+async function findChromeExecutable() {
+  const systemExecutable = systemChromeExecutable();
+  if (systemExecutable) {
+    return systemExecutable;
+  }
+  if (process.platform !== 'linux') {
+    return null;
+  }
+  try {
+    const path = await chromium.executablePath();
+    return path && existsSync(path) ? { path, args: chromium.args } : null;
+  } catch {
+    return null;
+  }
 }
 
 function prepareNativeScreenshotHtml(source) {
@@ -100,9 +108,10 @@ async function readRequestBody(request) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-async function runChromeScreenshot(executable, htmlPath, screenshotPath, profilePath) {
-  const child = spawn(executable, [
-    '--headless=new',
+async function runChromeScreenshot(browser, htmlPath, screenshotPath, profilePath) {
+  const headlessArguments = browser.args.length > 0 ? browser.args : ['--headless=new'];
+  const child = spawn(browser.path, [
+    ...headlessArguments,
     '--disable-gpu',
     '--disable-background-networking',
     '--disable-component-update',
@@ -189,7 +198,7 @@ async function handleHtmlScreenshot(request, response) {
     return;
   }
 
-  const executable = findChromeExecutable();
+  const executable = await findChromeExecutable();
   if (!executable) {
     response.statusCode = 503;
     response.end('A Chrome or Chromium executable is required for native HTML screenshots.');

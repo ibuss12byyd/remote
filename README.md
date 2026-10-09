@@ -11,8 +11,7 @@ Both routes include CORS headers for a frontend hosted on another origin.
 
 ## Run
 
-Requires Node.js 18+. `npm ci` installs Puppeteer and its managed Chrome for native screenshots. Set `SHOTBOARD_CHROME_PATH` or `PUPPETEER_EXECUTABLE_PATH` only when using a system browser.
-Puppeteer stores that browser under `.cache/puppeteer` inside the service directory so the executable remains available at runtime.
+Requires Node.js 18+. On Linux, the production dependency `@sparticuz/chromium` supplies a self-contained headless Chromium executable. Set `SHOTBOARD_CHROME_PATH` or `PUPPETEER_EXECUTABLE_PATH` only when overriding it with a system browser.
 
 ```bash
 npm start
