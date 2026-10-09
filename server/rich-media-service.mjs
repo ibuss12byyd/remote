@@ -1,9 +1,9 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
@@ -63,7 +63,7 @@ function systemChromeExecutable() {
     '/usr/bin/chromium-browser',
   ];
   const path = candidates.find((candidate) => candidate && existsSync(candidate)) ?? null;
-  return path ? { path, args: [] } : null;
+  return path ? { path, args: [], headless: 'new' } : null;
 }
 
 async function findChromeExecutable() {
@@ -76,7 +76,9 @@ async function findChromeExecutable() {
   }
   try {
     const path = await chromium.executablePath();
-    return path && existsSync(path) ? { path, args: chromium.args } : null;
+    return path && existsSync(path)
+      ? { path, args: chromium.args, headless: chromium.headless }
+      : null;
   } catch {
     return null;
   }
@@ -109,52 +111,45 @@ async function readRequestBody(request) {
 }
 
 async function runChromeScreenshot(browser, htmlPath, screenshotPath, profilePath) {
-  const headlessArguments = browser.args.length > 0 ? browser.args : ['--headless=new'];
-  const child = spawn(browser.path, [
-    ...headlessArguments,
-    '--disable-gpu',
-    '--disable-background-networking',
-    '--disable-component-update',
-    '--disable-crash-reporter',
-    '--hide-scrollbars',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--allow-file-access-from-files',
-    '--autoplay-policy=no-user-gesture-required',
-    '--run-all-compositor-stages-before-draw',
-    '--window-size=320,480',
-    '--force-device-scale-factor=3',
-    '--virtual-time-budget=5000',
-    `--user-data-dir=${profilePath}`,
-    `--screenshot=${screenshotPath}`,
-    pathToFileURL(htmlPath).href,
-  ], {
-    stdio: ['ignore', 'ignore', 'pipe'],
+  const browserInstance = await puppeteer.launch({
+    executablePath: browser.path,
+    args: [
+      ...browser.args,
+      '--allow-file-access-from-files',
+      '--autoplay-policy=no-user-gesture-required',
+      '--disable-background-networking',
+      '--disable-component-update',
+      '--disable-crash-reporter',
+      '--hide-scrollbars',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--run-all-compositor-stages-before-draw',
+      '--window-size=320,480',
+    ],
+    defaultViewport: {
+      width: 320,
+      height: 480,
+      deviceScaleFactor: 3,
+    },
+    headless: browser.headless,
+    userDataDir: profilePath,
   });
-  let processError = null;
-  child.stderr?.on('data', () => {});
-  child.once('error', (error) => {
-    processError = error;
-  });
-
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < SCREENSHOT_TIMEOUT_MS) {
-    if (processError) {
-      throw processError;
-    }
-    try {
-      const output = await stat(screenshotPath);
-      if (output.size > 0) {
-        child.kill('SIGKILL');
-        return;
-      }
-    } catch {
-      // Chrome has not written the screenshot yet.
-    }
-    await delay(100);
+  try {
+    const page = await browserInstance.newPage();
+    page.setDefaultNavigationTimeout(SCREENSHOT_TIMEOUT_MS);
+    await page.goto(pathToFileURL(htmlPath).href, {
+      timeout: SCREENSHOT_TIMEOUT_MS,
+      waitUntil: 'load',
+    });
+    await delay(5000);
+    await page.screenshot({
+      fullPage: false,
+      path: screenshotPath,
+      type: 'png',
+    });
+  } finally {
+    await browserInstance.close();
   }
-  child.kill('SIGKILL');
-  throw new Error('The native HTML screenshot timed out.');
 }
 
 function setCorsHeaders(response) {
